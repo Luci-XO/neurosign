@@ -1,0 +1,12 @@
+.env
+node_modules/
+backend/venv/
+__pycache__/
+*.pyc
+*.db
+backend/ml/models/*.joblib
+backend/parkinsons.data
+dist/
+out/
+Thumbs.db
+.DS_Store

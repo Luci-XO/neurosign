@@ -1,0 +1,16 @@
+{
+  "name": "neurosign",
+  "version": "2.0.0",
+  "description": "NeuroSign - guided local screening demo using voice acoustics and movement micro-tremor analysis.",
+  "main": "electron/main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "electron": "^31.0.0"
+  },
+  "allowScripts": {
+    "electron@31.7.7": true
+  }
+}

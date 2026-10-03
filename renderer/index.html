@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>NeuroSign</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="app-header">
+    <img class="brand-logo" src="img/logo.png" alt="NeuroSign - Listen. Detect. Support." />
+
+    <div class="header-badges">
+      <span class="badge badge-demo">
+        <span class="badge-dot"></span>
+        Parkinson Screening Demo
+      </span>
+    </div>
+  </header>
+
+  <main>
+    <!-- ================= SCREEN 1: REGISTER ================= -->
+    <section id="screen-register" class="screen active">
+      <div class="card narrow">
+        <h2>Welcome to NeuroSign</h2>
+        <p class="hint">Before we start, please tell us a little about yourself.</p>
+        <label class="field">Name
+          <input type="text" id="reg-name" maxlength="80" placeholder="Your name" autocomplete="off" />
+        </label>
+        <label class="field">Age
+          <input type="number" id="reg-age" min="18" max="100" step="1" placeholder="Age in years" />
+        </label>
+        <label class="field">Gender
+          <select id="reg-gender">
+            <option value="">Select...</option>
+            <option value="male">Male</option>1 
+            <option value="female">Female</option>
+            <option value="other">Other</option>
+            <option value="prefer_not_to_say">Prefer not to say</option>
+          </select>
+        </label>
+        <div id="reg-error" class="status-line error"></div>
+        <button id="reg-continue" class="btn-primary wide">Continue</button>
+      </div>
+
+      <div id="past-card" class="card narrow hidden">
+        <h3>Previous reports</h3>
+        <table class="history-table"><tbody id="past-body"></tbody></table>
+      </div>
+    </section>
+
+    <!-- ================= SCREEN 2: WELCOME ================= -->
+    <section id="screen-welcome" class="screen">
+      <div class="card narrow">
+        <h2>Welcome, <span id="welcome-name"></span>!</h2>
+        <p class="hint">This screening has <b>8 short steps</b> and takes about 10 minutes. Here is what you will do:</p>
+
+        <div class="plan">
+          <div class="plan-part">
+            <h3>Part 1 - Voice (steps 1-4)</h3>
+            <p>You will say a steady "aaah" four times.</p>
+            <ul>
+              <li><b>Steps 1-3:</b> three <b>baseline</b> recordings. They show what your normal voice looks like.</li>
+              <li><b>Step 4:</b> one <b>detection</b> recording, compared with your baseline.</li>
+            </ul>
+          </div>
+          <div class="plan-part">
+            <h3>Part 2 - Movement (steps 5-8)</h3>
+            <p>You will trace shapes with your mouse or trackpad.</p>
+            <ul>
+              <li><b>Step 5:</b> trace a spiral (baseline).</li>
+              <li><b>Step 6:</b> trace a wave (baseline).</li>
+              <li><b>Step 7:</b> draw any simple shape you like (baseline).</li>
+              <li><b>Step 8:</b> repeat one of those shapes - the <b>detection</b> test, compared with your baseline.</li>
+            </ul>
+          </div>
+          <div class="plan-part">
+            <h3>Finally</h3>
+            <p>All results are analysed and saved in <b>one PDF report</b> with a score for every step and a final screening result.</p>
+          </div>
+        </div>
+
+        <div class="tips">
+          <b>Tips:</b> sit in a quiet room, use the same device for every movement step, and relax your hand on the desk.
+        </div>
+
+        <div class="field">Which device will you use for the movement steps?
+          <div class="radio-row">
+            <label><input type="radio" name="device" value="mouse" checked /> Mouse</label>
+            <label><input type="radio" name="device" value="trackpad" /> Trackpad</label>
+          </div>
+        </div>
+        <div id="welcome-error" class="status-line error"></div>
+        <div class="row-actions">
+          <button id="welcome-back" class="btn-secondary">Back</button>
+          <button id="welcome-begin" class="btn-primary">Continue to Step 1</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ================= SCREEN 3: STEPS ================= -->
+    <section id="screen-steps" class="screen">
+      <div id="progress" class="progress"></div>
+      <h2 id="step-title"></h2>
+      <p id="step-text" class="hint"></p>
+
+      <!-- voice -->
+      <div id="voice-panel" class="hidden">
+        <div class="card">
+          <div class="record-controls">
+            <button id="voice-record-btn" class="btn-primary">Start Recording</button>
+            <span id="voice-timer" class="timer">0.0s</span>
+          </div>
+          <div id="voice-status" class="status-line"></div>
+        </div>
+        <div id="voice-result" class="card hidden">
+          <div class="result-row">
+            <div class="score-circle" id="voice-score-circle"><span id="voice-score-value">--</span></div>
+            <div>
+              <div class="score-label">Stage score (0-100, lower = more regular)</div>
+              <table class="feature-table" id="voice-feature-table"></table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- movement -->
+      <div id="movement-panel" class="hidden">
+        <div class="card">
+          <div id="shape-picker" class="task-picker hidden">
+            <span class="picker-label">Shape to repeat:</span>
+            <label><input type="radio" name="shape" value="spiral" checked /> Spiral (step 5)</label>
+            <label><input type="radio" name="shape" value="wave" /> Wave (step 6)</label>
+            <label><input type="radio" name="shape" value="free" /> My free shape (step 7)</label>
+          </div>
+          <canvas id="tracer-canvas" width="600" height="400"></canvas>
+          <div class="record-controls">
+            <button id="movement-redo-btn" class="btn-secondary">Clear / redo</button>
+            <span id="movement-timer" class="timer">0.0s</span>
+          </div>
+          <div id="movement-status" class="status-line"></div>
+        </div>
+        <div id="movement-result" class="card hidden">
+          <div class="result-row">
+            <div class="score-circle" id="movement-score-circle"><span id="movement-score-value">--</span></div>
+            <div>
+              <div class="score-label">Stage score (0-100, lower = more regular)</div>
+              <table class="feature-table" id="movement-feature-table"></table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="row-actions">
+        <button id="next-btn" class="btn-primary" disabled>Next step</button>
+      </div>
+    </section>
+
+    <!-- ================= SCREEN 4: RESULTS ================= -->
+    <section id="screen-results" class="screen">
+      <h2>Your results</h2>
+      <div id="verdict-card" class="verdict-card">
+        <div class="verdict-kicker">FINAL SCREENING RESULT</div>
+        <div id="verdict-title" class="verdict-title"></div>
+        <p id="verdict-message"></p>
+      </div>
+
+      <div class="card">
+        <h3>What was checked</h3>
+        <table class="history-table"><tbody id="flags-body"></tbody></table>
+      </div>
+
+      <div class="card">
+        <h3>Score of every stage</h3>
+        <table class="history-table">
+          <thead><tr><th>Step</th><th>Test</th><th>Role</th><th>Score</th><th>Change</th></tr></thead>
+          <tbody id="stages-body"></tbody>
+        </table>
+      </div>
+
+      <div class="row-actions">
+        <button id="save-pdf-btn" class="btn-primary">Save PDF report</button>
+        <button id="open-pdf-btn" class="btn-secondary">Open report</button>
+        <button id="restart-btn" class="btn-secondary">Start a new assessment</button>
+      </div>
+      <div id="results-status" class="status-line"></div>
+      <p class="disclaimer">Screening indicator only - not a medical diagnosis. If you have symptoms, please see a doctor.</p>
+    </section>
+  </main>
+
+  <script src="js/recorder.js"></script>
+  <script src="js/tracer.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
