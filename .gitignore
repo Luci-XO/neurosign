@@ -1,12 +1,36 @@
-.env
+# Node.js and Electron
 node_modules/
+/dist/
+/out/
+/build/
+npm-debug.log*
+yarn-debug.log*
+
+# Python
+venv/
+.venv/
 backend/venv/
 __pycache__/
-*.pyc
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+
+# Local databases, trained models, and source datasets
 *.db
+*.db-*
 backend/ml/models/*.joblib
 backend/parkinsons.data
-dist/
-out/
+
+# Logs and temporary files
+*.log
+*.tmp
 Thumbs.db
 .DS_Store
