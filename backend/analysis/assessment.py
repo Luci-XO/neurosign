@@ -1,7 +1,13 @@
 """assessment.py - database helpers that tie the 8 steps together (change indices + summary)."""
+import gzip
+import json
+
 import numpy as np
 
-from analysis.scoring import voice_change_index, movement_change_index, make_verdict
+from analysis.movement_features import extract_movement_features
+from analysis.scoring import (
+    voice_change_index, movement_change_index, movement_stage_score, make_verdict,
+)
 
 VOICE_STEPS = (1, 2, 3, 4)
 MOVE_STEPS = (5, 6, 7, 8)
@@ -36,6 +42,29 @@ def refresh_changes(conn, sid):
                          (idx, base_step, move[8]["id"]))
 
 
+def _refresh_saved_guide_scores(conn, sid, move):
+    """Re-score older guided traces that predate the dedicated guide_deviation field."""
+    for step, row in move.items():
+        if step not in MOVE_STEPS or row["task_type"] not in ("spiral", "wave"):
+            continue
+        if row["guide_deviation"] is not None:
+            continue
+        raw = conn.execute(
+            """SELECT r.data_gz FROM raw_signals r
+               JOIN movement_results m ON m.id = r.movement_result_id
+               WHERE m.session_id = ? AND m.step = ?""",
+            (sid, step),
+        ).fetchone()
+        if raw is None:
+            continue
+        samples = json.loads(gzip.decompress(raw["data_gz"]).decode("utf-8"))
+        features = extract_movement_features(samples, row["task_type"])
+        conn.execute(
+            "UPDATE movement_results SET guide_deviation=?, stage_score=? WHERE id=?",
+            (features["guide_deviation"], movement_stage_score(features), row["id"]),
+        )
+
+
 def build_summary(conn, sid):
     s = conn.execute(
         """SELECT s.id, s.device, s.created_at, s.completed_at, s.verdict_code, u.name, u.age, u.gender
@@ -43,6 +72,8 @@ def build_summary(conn, sid):
     if not s:
         return None
     voice, move = load_rows(conn, sid)
+    _refresh_saved_guide_scores(conn, sid, move)
+    _, move = load_rows(conn, sid)
     stages = []
     for step in range(1, 9):
         row = voice.get(step) or move.get(step)
@@ -55,10 +86,11 @@ def build_summary(conn, sid):
         })
     v_scores = [voice[k]["stage_score"] for k in VOICE_STEPS if k in voice and voice[k]["stage_score"] is not None]
     m_scores = [move[k]["stage_score"] for k in MOVE_STEPS if k in move and move[k]["stage_score"] is not None]
+    # One clearly poor movement task should remain visible instead of being averaged down.
     verdict = make_verdict(
         float(np.mean(v_scores)) if v_scores else None,
         voice[4]["change_index"] if 4 in voice else None,
-        float(np.mean(m_scores)) if m_scores else None,
+        float(max(m_scores)) if m_scores else None,
         move[8]["change_index"] if 8 in move else None,
     )
     for f in verdict["flags"]:

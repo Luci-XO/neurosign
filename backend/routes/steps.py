@@ -4,12 +4,14 @@ import json
 import os
 import tempfile
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, g
 
 import config
 from db import get_connection
 from analysis.voice_features import extract_voice_features, VoiceAnalysisError
-from analysis.movement_features import extract_movement_features, MovementAnalysisError
+from analysis.movement_features import (
+    REFERENCE_CANVAS_SIZE, extract_movement_features, MovementAnalysisError,
+)
 from analysis.scoring import voice_stage_score, movement_stage_score
 from analysis.assessment import (
     VOICE_STEPS, MOVE_STEPS, TASK_FOR_STEP, BASE_STEP_FOR_TASK, load_rows, refresh_changes,
@@ -17,7 +19,6 @@ from analysis.assessment import (
 
 steps_bp = Blueprint("steps", __name__)
 
-# Order must match ml/train_voice_rf.py
 MODEL_FEATURES = [
     "jitter_local", "jitter_rap", "jitter_ppq5", "jitter_ddp",
     "shimmer_local", "shimmer_db", "shimmer_apq3", "shimmer_apq5", "shimmer_dda", "hnr",
@@ -26,7 +27,6 @@ _model = None
 
 
 def _model_probability(features):
-    """Reference value only (not used in the verdict). None if no trained model exists."""
     global _model
     if _model is None and config.VOICE_MODEL_PATH.exists():
         import joblib
@@ -42,6 +42,14 @@ def _insert(conn, table, row):
     return conn.execute(f"INSERT INTO {table} ({cols}) VALUES ({marks})", list(row.values())).lastrowid
 
 
+def _session_owned(conn, sid, account_id):
+    return conn.execute(
+        "SELECT s.id FROM sessions s JOIN users u ON u.id = s.user_id "
+        "WHERE s.id = ? AND u.account_id = ?",
+        (sid, account_id),
+    ).fetchone() is not None
+
+
 @steps_bp.route("/api/assessments/<int:sid>/voice", methods=["POST"])
 def voice_step(sid):
     step = request.form.get("step", type=int)
@@ -51,7 +59,7 @@ def voice_step(sid):
         return jsonify({"error": "No 'audio' file in the request."}), 400
 
     with get_connection() as conn:
-        if not conn.execute("SELECT id FROM sessions WHERE id=?", (sid,)).fetchone():
+        if not _session_owned(conn, sid, g.account_id):
             return jsonify({"error": f"No assessment with id {sid}."}), 404
         voice, _ = load_rows(conn, sid)
     if step == 4 and not all(s in voice for s in (1, 2, 3)):
@@ -85,6 +93,13 @@ def voice_step(sid):
 def movement_step(sid):
     d = request.get_json(silent=True) or {}
     step, samples = d.get("step"), d.get("samples")
+    canvas = d.get("canvas_size") or {}
+    if not isinstance(canvas, dict):
+        return jsonify({"error": "canvas_size must include width and height."}), 400
+    canvas_size = (
+        canvas.get("width", REFERENCE_CANVAS_SIZE[0]),
+        canvas.get("height", REFERENCE_CANVAS_SIZE[1]),
+    )
     if step not in MOVE_STEPS:
         return jsonify({"error": "Movement 'step' must be 5-8."}), 400
     task = TASK_FOR_STEP.get(step) or d.get("task_type")
@@ -94,20 +109,20 @@ def movement_step(sid):
         return jsonify({"error": "Field 'samples' must be a non-empty list."}), 400
 
     with get_connection() as conn:
-        if not conn.execute("SELECT id FROM sessions WHERE id=?", (sid,)).fetchone():
+        if not _session_owned(conn, sid, g.account_id):
             return jsonify({"error": f"No assessment with id {sid}."}), 404
         _, move = load_rows(conn, sid)
     if step == 8 and BASE_STEP_FOR_TASK[task] not in move:
         return jsonify({"error": f"Finish step {BASE_STEP_FOR_TASK[task]} first (that shape is your baseline)."}), 409
 
     try:
-        features = extract_movement_features(samples, task)
+        features = extract_movement_features(samples, task, canvas_size)
     except MovementAnalysisError as e:
         return jsonify({"error": str(e)}), 422
 
     row = {"session_id": sid, "step": step, **features, "stage_score": movement_stage_score(features)}
     with get_connection() as conn:
-        conn.execute("DELETE FROM movement_results WHERE session_id=? AND step=?", (sid, step))  # cascades raw_signals
+        conn.execute("DELETE FROM movement_results WHERE session_id=? AND step=?", (sid, step))
         rid = _insert(conn, "movement_results", row)
         conn.execute("INSERT INTO raw_signals (movement_result_id, data_gz) VALUES (?,?)",
                      (rid, gzip.compress(json.dumps(samples).encode("utf-8"))))

@@ -2,11 +2,11 @@
 scoring.py - pure scoring functions (no database). SCREENING DEMO ONLY - NOT A DIAGNOSIS.
 
 Two kinds of numbers:
-  stage score (0-100)  : absolute irregularity of ONE recording against fixed reference values.
+  stage score (0-100)  : absolute irregularity of ONE recording against provisional reference values.
                          Voice  : jitter/shimmer vs Praat's published voice-report thresholds
                                   (jitter 1.04 %, shimmer 3.81 % -> each maps to 50).
-                         Movement: share of 3-12 Hz energy that sits in the 4-6 Hz rest-tremor band
-                                  (PROVISIONAL scale, not clinically calibrated - tune below).
+                         Movement: maximum of tremor-band and guided-path-deviation scores
+                                  (PROVISIONAL scales, not clinically calibrated - tune below).
   change index (0-100) : how much the detection test (step 4 / step 8) moved away from the person's
                          OWN baseline, as a fold change (2x worse = 33, 4x = 67, 8x or more = 100).
 """
@@ -19,6 +19,8 @@ JITTER_REF = 0.0104          # fraction (1.04 %)
 SHIMMER_REF = 0.0381         # fraction (3.81 %)
 TREMOR_SHARE_FLOOR = 0.22    # ~ share of a flat spectrum (2 Hz of 9 Hz) -> score 0
 TREMOR_SHARE_CEIL = 0.60     # -> score 100
+GUIDE_DEVIATION_TOLERANCE_PX = 10.0  # nearest-guide p90 within this is treated as tracing tolerance
+GUIDE_DEVIATION_CEIL_PX = 50.0       # -> guide-deviation score 100
 FLAG_LEVEL = 50.0            # stage-score level at which a signal is flagged
 FLAG_CHANGE = 35.0           # change-index level at which a signal is flagged
 
@@ -27,7 +29,9 @@ VOICE_CHANGE_METRICS = {     # +1 = higher is worse, -1 = lower is worse
     "shimmer_local": 1, "shimmer_db": 1, "shimmer_apq3": 1, "shimmer_apq5": 1, "shimmer_dda": 1,
     "hnr": -1,
 }
-MOVEMENT_CHANGE_METRICS = {"tremor_power_4_6": 1, "velocity_cv": 1, "jerk_rms": 1, "path_deviation": 1}
+MOVEMENT_CHANGE_METRICS = {
+    "tremor_power_4_6": 1, "velocity_cv": 1, "jerk_rms": 1,
+}
 
 VERDICTS = {
     "no_indicators": {
@@ -69,7 +73,17 @@ def voice_stage_score(f):
 def movement_stage_score(f):
     share = f.get("tremor_share") or 0.0
     span = TREMOR_SHARE_CEIL - TREMOR_SHARE_FLOOR
-    return round(_clip((share - TREMOR_SHARE_FLOOR) / span * 100.0), 1)
+    tremor_score = _clip((share - TREMOR_SHARE_FLOOR) / span * 100.0)
+
+    deviation = f.get("guide_deviation")
+    if deviation is None:
+        return round(tremor_score, 1)
+    guide_score = _clip(
+        (deviation - GUIDE_DEVIATION_TOLERANCE_PX)
+        / (GUIDE_DEVIATION_CEIL_PX - GUIDE_DEVIATION_TOLERANCE_PX)
+        * 100.0
+    )
+    return round(max(tremor_score, guide_score), 1)
 
 
 def _fold_change_index(pairs):
@@ -101,7 +115,7 @@ def make_verdict(voice_level, voice_change, move_level, move_change):
     checks = [
         ("voice_level", "Voice irregularity level, steps 1-4 (jitter/shimmer vs reference)", voice_level, FLAG_LEVEL),
         ("voice_change", "Voice change vs your own baseline (step 4)", voice_change, FLAG_CHANGE),
-        ("move_level", "Movement tremor-band level, steps 5-8 (provisional scale)", move_level, FLAG_LEVEL),
+        ("move_level", "Movement irregularity or guide deviation, steps 5-8 (provisional scale)", move_level, FLAG_LEVEL),
         ("move_change", "Movement change vs your own baseline (step 8)", move_change, FLAG_CHANGE),
     ]
     flags = [{"key": k, "label": label, "value": v, "threshold": thr,

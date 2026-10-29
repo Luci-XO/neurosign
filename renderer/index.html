@@ -3,23 +3,239 @@
 <head>
   <meta charset="UTF-8" />
   <title>NeuroSign</title>
+  <script>
+    (function () {
+      if (localStorage.getItem("neurosign_theme") === "dark") {
+        document.documentElement.setAttribute("data-theme", "dark");
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
   <header class="app-header">
-    <img class="brand-logo" src="img/logo.png" alt="NeuroSign - Listen. Detect. Support." />
+    <div class="brand">
+      <svg class="brand-icon" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M17 10c-4 0-7 3-7 7 0 1.6.5 3 1.3 4.2C9.2 22.4 8 24.5 8 27c0 3.3 2.4 6 5.5 6.6C14.4 36.7 17.6 39 21 39h1V10h-5z"/>
+        <path d="M31 10c4 0 7 3 7 7 0 1.6-.5 3-1.3 4.2 2.1 1.2 3.3 3.3 3.3 5.8 0 3.3-2.4 6-5.5 6.6C33.6 36.7 30.4 39 27 39h-1V10h5z"/>
+        <path d="M13 24h6l2-4 3 9 2-5h9"/>
+      </svg>
+      <div class="brand-text">
+        <div class="brand-name">Neuro<span>Sign</span></div>
+        <div class="brand-tag">Listen. Detect. Support.</div>
+      </div>
+    </div>
 
-    <div class="header-badges">
+    <div class="header-right">
+      <button id="theme-toggle-btn" class="theme-toggle-btn" type="button">Dark</button>
       <span class="badge badge-demo">
         <span class="badge-dot"></span>
         Parkinson Screening Demo
       </span>
+      <div id="account-box" class="account-box hidden">
+        <span id="account-username" class="account-username"></span>
+        <button id="home-nav-btn" class="btn-secondary small" type="button">Home</button>
+        <button id="logout-btn" class="btn-secondary small" type="button">Log out</button>
+      </div>
     </div>
   </header>
 
   <main>
-    <!-- ================= SCREEN 1: REGISTER ================= -->
-    <section id="screen-register" class="screen active">
+    <!-- ================= SCREEN: HOME ================= -->
+    <section id="screen-home" class="screen active">
+
+      <div class="hero card">
+        <div class="hero-text">
+          <span class="chip"><span class="chip-dot"></span>PARKINSON'S AWARENESS</span>
+          <h1>Understand Parkinson's.<br /><span class="grad-text">Take the first step.</span></h1>
+          <p>Parkinson's disease is a progressive condition that affects movement. Early awareness and screening can help you recognize changes and take timely action.</p>
+        </div>
+
+        <div class="hero-art" aria-hidden="true">
+          <svg viewBox="0 0 520 300" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="waveGrad" x1="0" y1="0" x2="1" y2="0">
+                <stop offset="0%" style="stop-color:var(--accent2);stop-opacity:0" />
+                <stop offset="45%" style="stop-color:var(--accent2);stop-opacity:0.9" />
+                <stop offset="100%" style="stop-color:var(--accent);stop-opacity:0.2" />
+              </linearGradient>
+              <radialGradient id="brainFill" cx="50%" cy="45%" r="60%">
+                <stop offset="0%" style="stop-color:var(--accent);stop-opacity:0.38" />
+                <stop offset="100%" style="stop-color:var(--accent2);stop-opacity:0.08" />
+              </radialGradient>
+              <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" style="stop-color:var(--accent);stop-opacity:0.35" />
+                <stop offset="100%" style="stop-color:var(--accent);stop-opacity:0" />
+              </radialGradient>
+            </defs>
+
+            <circle cx="360" cy="140" r="130" fill="url(#glow)" />
+
+            <path d="M0 170 C40 170 50 100 90 100 S140 210 180 210 S230 90 270 90 S320 190 360 170 S440 120 520 150" fill="none" stroke="url(#waveGrad)" stroke-width="2.4" />
+            <path d="M0 190 C50 190 60 140 100 140 S150 220 195 220 S240 130 285 130 S340 200 380 185 S450 150 520 170" fill="none" stroke="url(#waveGrad)" stroke-width="1.6" opacity="0.6" />
+
+            <g transform="translate(250 10)">
+              <path d="M70 140 C50 105 78 58 124 60 C142 30 196 30 218 62 C264 56 296 100 278 138 C298 166 278 210 242 212 C234 238 190 248 168 230 C142 248 92 238 90 210 C52 210 40 170 70 140 Z"
+                    fill="url(#brainFill)" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" />
+              <path d="M168 230 C170 250 172 262 178 280" fill="none" stroke="var(--accent)" stroke-width="2.4" stroke-linecap="round" />
+              <path d="M118 96 C140 110 150 90 172 104 S210 96 232 108" fill="none" stroke="var(--accent2)" stroke-width="1.4" opacity="0.7" />
+              <path d="M92 150 C120 140 134 168 160 156 S206 150 252 160" fill="none" stroke="var(--accent2)" stroke-width="1.4" opacity="0.7" />
+              <path d="M110 196 C136 184 150 206 176 196 S216 188 240 198" fill="none" stroke="var(--accent2)" stroke-width="1.4" opacity="0.7" />
+              <g stroke="var(--accent2)" stroke-width="1" opacity="0.65">
+                <line x1="118" y1="96" x2="150" y2="104" /><line x1="150" y1="104" x2="172" y2="104" />
+                <line x1="172" y1="104" x2="210" y2="98" /><line x1="210" y1="98" x2="232" y2="108" />
+                <line x1="92" y1="150" x2="134" y2="160" /><line x1="134" y1="160" x2="160" y2="156" />
+                <line x1="160" y1="156" x2="206" y2="152" /><line x1="206" y1="152" x2="252" y2="160" />
+                <line x1="110" y1="196" x2="150" y2="200" /><line x1="150" y1="200" x2="176" y2="196" />
+                <line x1="176" y1="196" x2="216" y2="190" /><line x1="150" y1="104" x2="134" y2="160" />
+                <line x1="172" y1="104" x2="160" y2="156" /><line x1="210" y1="98" x2="206" y2="152" />
+                <line x1="134" y1="160" x2="150" y2="200" /><line x1="206" y1="152" x2="216" y2="190" />
+              </g>
+              <g fill="var(--accent2)">
+                <circle cx="118" cy="96" r="3.4" /><circle cx="150" cy="104" r="3.4" /><circle cx="172" cy="104" r="3.4" />
+                <circle cx="210" cy="98" r="3.4" /><circle cx="232" cy="108" r="3.4" /><circle cx="92" cy="150" r="3.4" />
+                <circle cx="134" cy="160" r="3.4" /><circle cx="160" cy="156" r="3.4" /><circle cx="206" cy="152" r="3.4" />
+                <circle cx="252" cy="160" r="3.4" /><circle cx="110" cy="196" r="3.4" /><circle cx="150" cy="200" r="3.4" />
+                <circle cx="176" cy="196" r="3.4" /><circle cx="216" cy="190" r="3.4" /><circle cx="240" cy="198" r="3.4" />
+              </g>
+            </g>
+          </svg>
+        </div>
+      </div>
+
+      <div class="home-cards">
+        <div class="home-card">
+          <div class="home-card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6.5C10.5 5.3 8.3 4.8 5 5v13c3.3-.2 5.5.3 7 1.5 1.5-1.2 3.7-1.7 7-1.5V5c-3.3-.2-5.5.3-7 1.5z"/><path d="M12 6.5v13"/></svg>
+          </div>
+          <h3>Know more about Parkinson's</h3>
+          <p>Explore the basics, symptoms, causes and ways to manage Parkinson's disease.</p>
+          <button id="home-know-more-btn" class="btn-pill btn-pill-outline" type="button">Learn More <span class="arrow">&rarr;</span></button>
+        </div>
+
+        <div class="home-card featured">
+          <div class="home-card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="3.5" width="17" height="17" rx="4"/><path d="M6.5 12h3l1.8-3.5 2.4 7 1.8-3.5h2"/></svg>
+          </div>
+          <h3>Test Parkinson's</h3>
+          <p>Run a short voice and movement screening to get insights about potential early signs.</p>
+          <button id="home-test-btn" class="btn-pill btn-pill-solid" type="button">Start Screening <span class="arrow">&rarr;</span></button>
+        </div>
+
+        <div class="home-card">
+          <div class="home-card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8.5 8.5 0 0 1-12.4 7.5L3.5 21l1.5-4.6A8.5 8.5 0 1 1 21 12z"/><circle cx="8.5" cy="12" r=".9" fill="currentColor"/><circle cx="12" cy="12" r=".9" fill="currentColor"/><circle cx="15.5" cy="12" r=".9" fill="currentColor"/></svg>
+          </div>
+          <h3>AI Assistant - Neuro</h3>
+          <p>Get answers, guidance and support from your AI health assistant, Neuro.</p>
+          <button id="home-neuro-btn" class="btn-pill btn-pill-outline" type="button">Chat with Neuro <span class="arrow">&rarr;</span></button>
+        </div>
+      </div>
+
+      <div class="card facts-card">
+        <h3>Quick facts</h3>
+        <div class="home-info-scroll">
+          <p>Parkinson's disease develops when nerve cells that produce dopamine, a chemical messenger involved in controlling movement, gradually stop working properly in a part of the brain called the substantia nigra.</p>
+          <p>Common early signs include a slight tremor in one hand, stiffness or slowness of movement, smaller handwriting, a softer or more monotone voice, and reduced facial expression. Symptoms usually appear gradually and are easy to miss at first.</p>
+          <p>There is currently no cure, but medication, physical therapy, and lifestyle changes can manage symptoms effectively, especially when started early. Diagnosis and treatment decisions should always involve a qualified doctor.</p>
+        </div>
+      </div>
+
+      <p class="home-disclaimer">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>
+        This screening is for informational purposes only and is not a diagnosis.
+      </p>
+    </section>
+
+    <!-- ================= SCREEN: KNOW MORE (no login required) ================= -->
+    <section id="screen-knowmore" class="screen">
+      <button id="knowmore-back-btn" class="back-link" type="button">&larr; Back to home</button>
+      <div class="card">
+        <h2>The History of Parkinson's Disease</h2>
+        <p>The condition was first described in 1817 by James Parkinson, a London surgeon, in a short essay he titled "An Essay on the Shaking Palsy." He documented a handful of patients with a characteristic trembling and stooped gait, without yet understanding what caused it.</p>
+        <p>Later in the 19th century, the French neurologist Jean-Martin Charcot studied the condition extensively between 1868 and 1881 and is credited with giving it the name "Parkinson's disease," helping distinguish it from other movement disorders of the time.</p>
+        <p>The breakthrough in understanding its biology came in the late 1950s and 1960, when researchers including Arvid Carlsson, Oleh Hornykiewicz, and Herbert Ehringer found that the brains of people with Parkinson's had markedly reduced levels of dopamine. This finding led directly to the development of Levodopa therapy through the 1960s, a treatment that remains a cornerstone of Parkinson's care today.</p>
+        <p>Research since then has continued to refine diagnosis, deepen understanding of non-movement symptoms, and explore new treatments - work that is still ongoing today.</p>
+        <p class="hint">This summary is written for general awareness and is not medical advice. For the complete, continuously updated article, search "Parkinson's disease" on Wikipedia (en.wikipedia.org/wiki/Parkinson's_disease).</p>
+      </div>
+    </section>
+
+    <!-- ================= SCREEN: NEURO ================= -->
+    <section id="screen-neuro" class="screen">
+      <button id="neuro-back-btn" class="back-link" type="button">&larr; Back to home</button>
+      <div class="card narrow neuro-card">
+        <h2>Neuro - AI Assistant</h2>
+        <p class="hint">Ask Neuro about Parkinson's disease or any health and medical topic. Neuro only answers health-related questions, can't diagnose, and isn't a substitute for a doctor.</p>
+        <div id="neuro-messages" class="neuro-messages"></div>
+        <div id="neuro-offline-note" class="status-line hidden">Running in offline mode (no internet, or the AI service is unreachable) - answers are limited to a small built-in set of Parkinson's topics.</div>
+        <div class="neuro-input-row">
+          <input type="text" id="neuro-input" placeholder="Ask Neuro a health question..." maxlength="1000" />
+          <button id="neuro-send-btn" class="btn-primary" type="button">Send</button>
+        </div>
+        <div id="neuro-error" class="status-line error"></div>
+      </div>
+    </section>
+
+    <!-- ================= SCREEN: LOGIN / SIGN UP ================= -->
+    <section id="screen-login" class="screen">
+      <div id="auth-main-card" class="card narrow">
+        <button id="login-back-home" class="back-link" type="button">&larr; Back to home</button>
+        <h2 id="auth-title">Sign in to NeuroSign</h2>
+        <p class="hint">Your test results are private to your account.</p>
+
+        <label class="field">Username
+          <input type="text" id="auth-username" maxlength="32" placeholder="username" autocomplete="username" />
+        </label>
+        <label class="field">Password
+          <input type="password" id="auth-password" placeholder="password" autocomplete="current-password" />
+        </label>
+        <div id="consent-field" class="field hidden">
+          <label style="display:flex;align-items:center;gap:8px;font-weight:normal;">
+            <input type="checkbox" id="auth-consent" style="width:auto;" />
+            I agree that my test data is stored locally on this device.
+          </label>
+        </div>
+
+        <div id="auth-error" class="status-line error"></div>
+        <button id="auth-submit" class="btn-primary wide" type="button">Sign in</button>
+        <p class="hint" style="margin-top:14px;">
+          <a href="#" id="auth-toggle-mode">Need an account? Sign up</a>
+        </p>
+        <p class="hint">
+          <a href="#" id="auth-forgot">Forgot password?</a>
+        </p>
+      </div>
+
+      <!-- Forgot-password panel -->
+      <div id="forgot-card" class="card narrow hidden">
+        <h3>Reset password</h3>
+        <label class="field">Username
+          <input type="text" id="forgot-username" maxlength="32" />
+        </label>
+        <label class="field">Recovery code
+          <input type="text" id="forgot-code" placeholder="XXXXX-XXXXX" />
+        </label>
+        <label class="field">New password
+          <input type="password" id="forgot-new-password" />
+        </label>
+        <div id="forgot-error" class="status-line error"></div>
+        <div class="row-actions">
+          <button id="forgot-cancel" class="btn-secondary" type="button">Cancel</button>
+          <button id="forgot-submit" class="btn-primary" type="button">Reset password</button>
+        </div>
+      </div>
+
+      <!-- Recovery code reveal (shown once, right after sign-up) -->
+      <div id="recovery-card" class="card narrow hidden">
+        <h3>Save your recovery code</h3>
+        <p class="hint">There is no email on this app. If you forget your password, this code is the only way back in. It is shown only once.</p>
+        <div id="recovery-code-value" style="font-size:1.4em;font-weight:bold;letter-spacing:2px;text-align:center;padding:14px;background:var(--bg);border-radius:8px;margin:12px 0;"></div>
+        <button id="recovery-continue" class="btn-primary wide" type="button">I've saved it - continue</button>
+      </div>
+    </section>
+
+    <!-- ================= SCREEN: REGISTER (test-subject profile) ================= -->
+    <section id="screen-register" class="screen">
       <div class="card narrow">
         <h2>Welcome to NeuroSign</h2>
         <p class="hint">Before we start, please tell us a little about yourself.</p>
@@ -32,14 +248,14 @@
         <label class="field">Gender
           <select id="reg-gender">
             <option value="">Select...</option>
-            <option value="male">Male</option>1 
+            <option value="male">Male</option>
             <option value="female">Female</option>
             <option value="other">Other</option>
             <option value="prefer_not_to_say">Prefer not to say</option>
           </select>
         </label>
         <div id="reg-error" class="status-line error"></div>
-        <button id="reg-continue" class="btn-primary wide">Continue</button>
+        <button id="reg-continue" class="btn-primary wide" type="button">Continue</button>
       </div>
 
       <div id="past-card" class="card narrow hidden">
@@ -48,7 +264,7 @@
       </div>
     </section>
 
-    <!-- ================= SCREEN 2: WELCOME ================= -->
+    <!-- ================= SCREEN: WELCOME ================= -->
     <section id="screen-welcome" class="screen">
       <div class="card narrow">
         <h2>Welcome, <span id="welcome-name"></span>!</h2>
@@ -91,13 +307,13 @@
         </div>
         <div id="welcome-error" class="status-line error"></div>
         <div class="row-actions">
-          <button id="welcome-back" class="btn-secondary">Back</button>
-          <button id="welcome-begin" class="btn-primary">Continue to Step 1</button>
+          <button id="welcome-back" class="btn-secondary" type="button">Back</button>
+          <button id="welcome-begin" class="btn-primary" type="button">Continue to Step 1</button>
         </div>
       </div>
     </section>
 
-    <!-- ================= SCREEN 3: STEPS ================= -->
+    <!-- ================= SCREEN: STEPS ================= -->
     <section id="screen-steps" class="screen">
       <div id="progress" class="progress"></div>
       <h2 id="step-title"></h2>
@@ -107,7 +323,7 @@
       <div id="voice-panel" class="hidden">
         <div class="card">
           <div class="record-controls">
-            <button id="voice-record-btn" class="btn-primary">Start Recording</button>
+            <button id="voice-record-btn" class="btn-primary" type="button">Start Recording</button>
             <span id="voice-timer" class="timer">0.0s</span>
           </div>
           <div id="voice-status" class="status-line"></div>
@@ -134,7 +350,7 @@
           </div>
           <canvas id="tracer-canvas" width="600" height="400"></canvas>
           <div class="record-controls">
-            <button id="movement-redo-btn" class="btn-secondary">Clear / redo</button>
+            <button id="movement-redo-btn" class="btn-secondary" type="button">Clear / redo</button>
             <span id="movement-timer" class="timer">0.0s</span>
           </div>
           <div id="movement-status" class="status-line"></div>
@@ -143,7 +359,7 @@
           <div class="result-row">
             <div class="score-circle" id="movement-score-circle"><span id="movement-score-value">--</span></div>
             <div>
-              <div class="score-label">Stage score (0-100, lower = more regular)</div>
+              <div class="score-label">Movement score (0-100, provisional; lower = more regular)</div>
               <table class="feature-table" id="movement-feature-table"></table>
             </div>
           </div>
@@ -151,11 +367,11 @@
       </div>
 
       <div class="row-actions">
-        <button id="next-btn" class="btn-primary" disabled>Next step</button>
+        <button id="next-btn" class="btn-primary" type="button" disabled>Next step</button>
       </div>
     </section>
 
-    <!-- ================= SCREEN 4: RESULTS ================= -->
+    <!-- ================= SCREEN: RESULTS ================= -->
     <section id="screen-results" class="screen">
       <h2>Your results</h2>
       <div id="verdict-card" class="verdict-card">
@@ -169,18 +385,46 @@
         <table class="history-table"><tbody id="flags-body"></tbody></table>
       </div>
 
+      <section class="exercise-section" aria-labelledby="exercise-heading">
+        <div class="exercise-heading">
+          <h3 id="exercise-heading">Gentle exercise ideas</h3>
+          <p>Choose a card for step-by-step guidance. These general ideas are not a treatment plan or recommendations based on your screening score.</p>
+        </div>
+        <div class="exercise-grid" id="exercise-grid"></div>
+        <p class="exercise-safety">Check with your doctor or physical therapist before starting, especially if you have balance concerns. Stop if you feel pain, become dizzy, or are unusually short of breath.</p>
+      </section>
+
+      <dialog id="exercise-dialog" class="exercise-dialog" aria-labelledby="exercise-dialog-title">
+        <div class="exercise-dialog-header">
+          <div>
+            <p class="exercise-dialog-kicker">GENTLE EXERCISE IDEA</p>
+            <h3 id="exercise-dialog-title"></h3>
+          </div>
+          <button id="exercise-dialog-close" class="btn-secondary" type="button" aria-label="Close exercise details">Close</button>
+        </div>
+        <div class="exercise-dialog-content">
+          <div id="exercise-dialog-illustration" class="exercise-illustration exercise-dialog-art"></div>
+          <div>
+            <h4>How to try it</h4>
+            <p id="exercise-dialog-instructions"></p>
+            <p id="exercise-dialog-cue" class="exercise-cue"></p>
+          </div>
+        </div>
+        <p class="exercise-dialog-safety">Move only within a comfortable range. Use a stable support when standing, and ask a healthcare professional whether an activity is suitable for you.</p>
+      </dialog>
+
       <div class="card">
         <h3>Score of every stage</h3>
         <table class="history-table">
-          <thead><tr><th>Step</th><th>Test</th><th>Role</th><th>Score</th><th>Change</th></tr></thead>
+          <thead><tr><th>Step</th><th>Test</th><th>Role</th><th>Score</th><th>Guide distance</th><th>Change</th></tr></thead>
           <tbody id="stages-body"></tbody>
         </table>
       </div>
 
       <div class="row-actions">
-        <button id="save-pdf-btn" class="btn-primary">Save PDF report</button>
-        <button id="open-pdf-btn" class="btn-secondary">Open report</button>
-        <button id="restart-btn" class="btn-secondary">Start a new assessment</button>
+        <button id="save-pdf-btn" class="btn-primary" type="button">Save PDF report</button>
+        <button id="open-pdf-btn" class="btn-secondary" type="button">Open report</button>
+        <button id="restart-btn" class="btn-secondary" type="button">Start a new assessment</button>
       </div>
       <div id="results-status" class="status-line"></div>
       <p class="disclaimer">Screening indicator only - not a medical diagnosis. If you have symptoms, please see a doctor.</p>
@@ -189,6 +433,9 @@
 
   <script src="js/recorder.js"></script>
   <script src="js/tracer.js"></script>
+  <script src="js/theme.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/neuro.js"></script>
 </body>
 </html>
