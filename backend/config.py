@@ -21,7 +21,10 @@ def _bool(name, default):
 
 
 PORT = _int("NEUROSIGN_PORT", 5057)
-DB_PATH = BACKEND_DIR / os.getenv("NEUROSIGN_DB_PATH", "neurosign.db")  # absolute paths also work
+DB_PATH = BACKEND_DIR / os.getenv("NEUROSIGN_DB_PATH", "neurosign.db")
 DEBUG = _bool("NEUROSIGN_DEBUG", False)
 MODELS_DIR = BACKEND_DIR / "ml" / "models"
 VOICE_MODEL_PATH = MODELS_DIR / "voice_rf.joblib"
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-1.5-flash").strip()

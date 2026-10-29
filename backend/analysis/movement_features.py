@@ -1,7 +1,7 @@
 """
 movement_features.py - (t_ms, x, y) telemetry -> tremor / smoothness features.
 Pipeline: sort+dedupe -> resample to 100 Hz -> 2 Hz high-pass -> Welch band power
--> velocity CV, jerk RMS -> path deviation (spiral/wave).
+-> velocity CV, jerk RMS -> distance from the displayed guide (spiral/wave).
 """
 import numpy as np
 from scipy import signal
@@ -11,6 +11,8 @@ HIGHPASS_HZ = 2.0
 MIN_SAMPLES = 50
 MIN_DURATION_S = 2.0
 MAX_GAP_S = 0.5   # a pause longer than this means the pen was lifted; we analyse the longest continuous stroke
+REFERENCE_CANVAS_SIZE = (600, 400)
+GUIDE_POINTS_PER_TURN = 720
 
 _trapz = getattr(np, "trapezoid", None) or np.trapz
 
@@ -67,18 +69,78 @@ def _speed_jerk(x, y, hz):
     return cv, float(np.sqrt(np.mean(jx ** 2 + jy ** 2)))
 
 
-def _path_deviation(x, y, task_type):
+def _reference_path(task_type, width, height):
+    if task_type == "spiral":
+        turns = 4
+        angle = np.linspace(0, turns * 2 * np.pi, turns * GUIDE_POINTS_PER_TURN + 1)
+        radius = (angle / (turns * 2 * np.pi)) * (min(width, height) / 2 - 20)
+        return np.column_stack((
+            width / 2 + radius * np.cos(angle),
+            height / 2 + radius * np.sin(angle),
+        ))
+    if task_type == "wave":
+        margin = 40
+        x_ref = np.linspace(margin, width - margin, max(2, int((width - 2 * margin) / 2) + 1))
+        y_ref = height / 2 + (height / 4) * np.sin(
+            ((x_ref - margin) / (width - 2 * margin)) * 4 * np.pi
+        )
+        return np.column_stack((x_ref, y_ref))
+    return None
+
+
+def _smooth_path_deviation(x, y, task_type):
     if task_type == "free":
         return None
-    w = max(5, len(x) // 20)
-    w += (w % 2 == 0)
-    if w >= len(x):
+    window = max(5, len(x) // 20)
+    window += window % 2 == 0
+    if window >= len(x):
         return 0.0
-    sx, sy = signal.savgol_filter(x, w, 3), signal.savgol_filter(y, w, 3)
-    return float(np.mean(np.hypot(x - sx, y - sy)))
+    smooth_x = signal.savgol_filter(x, window, 3)
+    smooth_y = signal.savgol_filter(y, window, 3)
+    return float(np.mean(np.hypot(x - smooth_x, y - smooth_y)))
 
 
-def extract_movement_features(samples, task_type):
+def _guide_deviation(x, y, task_type, canvas_size):
+    """Compare equal arc-length progress points so adjacent spiral turns cannot mask drift."""
+    if task_type == "free":
+        return None
+    width, height = canvas_size
+    reference = _reference_path(task_type, width, height)
+    if reference is None:
+        return None
+
+    def resample_by_progress(points, count):
+        segment_lengths = np.hypot(*np.diff(points, axis=0).T)
+        distance = np.concatenate(([0.0], np.cumsum(segment_lengths)))
+        keep = np.concatenate(([True], np.diff(distance) > 1e-9))
+        distance, points = distance[keep], points[keep]
+        if len(points) < 2 or distance[-1] <= 0:
+            return np.repeat(points[:1], count, axis=0)
+        targets = np.linspace(0.0, distance[-1], count)
+        return np.column_stack((
+            np.interp(targets, distance, points[:, 0]),
+            np.interp(targets, distance, points[:, 1]),
+        ))
+
+    count = min(1000, max(100, len(x)))
+    trace = resample_by_progress(np.column_stack((x, y)), count)
+    guide = resample_by_progress(reference, count)
+    distances = np.hypot(trace[:, 0] - guide[:, 0], trace[:, 1] - guide[:, 1])
+    return float(np.percentile(distances, 95))
+
+
+def extract_movement_features(samples, task_type, canvas_size=REFERENCE_CANVAS_SIZE):
+    if task_type not in ("spiral", "wave", "free"):
+        raise MovementAnalysisError("Movement task was not recognized. Please try again.")
+    if (
+        not isinstance(canvas_size, (tuple, list))
+        or len(canvas_size) != 2
+        or any(not isinstance(value, (int, float)) or not np.isfinite(value) for value in canvas_size)
+        or any(value < 100 or value > 4096 for value in canvas_size)
+    ):
+        raise MovementAnalysisError("Movement canvas size was invalid. Please restart the step.")
+    canvas_size = tuple(float(value) for value in canvas_size)
+
     if not isinstance(samples, list) or len(samples) < MIN_SAMPLES:
         raise MovementAnalysisError(
             f"Only {len(samples) if isinstance(samples, list) else 0} points captured. "
@@ -102,7 +164,8 @@ def extract_movement_features(samples, task_type):
     p_all, _ = _band(freqs, psd, 3, 12)
     share = p46 / p_all if p_all > 0 else 0.0     # scale-free: how much of the 3-12 Hz energy sits at 4-6 Hz
     cv, jerk = _speed_jerk(x, y, RESAMPLE_HZ)
-    dev = _path_deviation(x, y, task_type)
+    path_deviation = _smooth_path_deviation(x, y, task_type)
+    guide_deviation = _guide_deviation(x, y, task_type, canvas_size)
 
     return {
         "task_type": task_type,
@@ -115,5 +178,6 @@ def extract_movement_features(samples, task_type):
         "peak_freq_hz": round(f46 if p46 >= p612 else f612, 3),
         "velocity_cv": round(cv, 6),
         "jerk_rms": round(jerk, 6),
-        "path_deviation": None if dev is None else round(dev, 4),
+        "path_deviation": None if path_deviation is None else round(path_deviation, 2),
+        "guide_deviation": None if guide_deviation is None else round(guide_deviation, 2),
     }

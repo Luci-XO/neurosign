@@ -1,10 +1,14 @@
 /**
- * renderer/js/app.js - the guided 8-step flow:
- *   register -> welcome -> steps 1-8 -> results (+ PDF)
+ * renderer/js/app.js - home -> (login on demand) -> register -> welcome -> steps 1-8 -> results
  * All data goes to the local Flask backend. User-supplied text is only ever inserted with textContent.
  */
 const API = window.neurosign.apiBaseUrl;
 const $ = (id) => document.getElementById(id);
+
+let AUTH_TOKEN = null;
+let AUTH_USERNAME = null;
+
+let PENDING_ACTION = null;
 
 const STEPS = {
   1: { kind: "voice", title: "Voice baseline 1 of 3",
@@ -27,13 +31,74 @@ const STEPS = {
 
 const state = { profile: null, device: "mouse", sessionId: null, step: 1, done: {}, task8: "spiral", summary: null };
 
+const EXERCISES = [
+  {
+    id: "seated-march",
+    title: "Seated marching",
+    summary: "Gently lift one foot at a time while sitting in a sturdy chair.",
+    instructions: "Sit toward the front of a stable chair with both feet resting on the floor. Sit tall, then slowly lift one foot a few inches, lower it, and repeat with the other foot. Keep alternating at an easy pace.",
+    cue: "Keep your back supported if needed; make the lift smaller or stop if it feels uncomfortable.",
+    image: "img/exercises/seated-march.png",
+  },
+  {
+    id: "heel-raises",
+    title: "Supported heel raises",
+    summary: "Hold a stable support and gently rise onto your toes.",
+    instructions: "Stand facing a sturdy counter or the back of a heavy chair, with both hands resting on it. Keeping your body upright, slowly lift your heels, pause briefly if comfortable, then lower them with control.",
+    cue: "Keep both feet pointing forward and stay close to your support. Skip this if standing does not feel steady.",
+    image: "img/exercises/heel-raises.png",
+  },
+  {
+    id: "knee-extension",
+    title: "Seated knee extension",
+    summary: "Slowly straighten one knee while seated, then switch legs.",
+    instructions: "Sit in a stable chair with your feet flat on the floor. Slowly straighten one knee until your leg is comfortable, pause briefly, then lower your foot back down. Repeat on the other side.",
+    cue: "Use a small, pain-free range and keep the movement slow. Do not lock your knee.",
+    image: "img/exercises/knee-extension.png",
+  },
+  {
+    id: "supported-side-steps",
+    title: "Supported side steps",
+    summary: "With a counter within reach, take a few small sideways steps.",
+    instructions: "Stand beside a clear, sturdy counter and keep one or both hands in contact with it. Take one small step sideways, bring the other foot in, and repeat for a few steps. Turn carefully, then return the other way if comfortable.",
+    cue: "Keep your steps small and avoid crossing your feet. Have someone nearby if balance is a concern.",
+    image: "img/exercises/supported-side-steps.png",
+  },
+  {
+    id: "shoulder-rolls",
+    title: "Gentle shoulder rolls",
+    summary: "Slowly roll your shoulders in a comfortable, relaxed motion.",
+    instructions: "Sit or stand comfortably with your arms relaxed by your sides. Slowly lift your shoulders toward your ears, roll them gently backward, and let them settle. Repeat a few times, then reverse direction if it feels comfortable.",
+    cue: "Keep your neck relaxed and use a small range; stop if you feel pain or pinching.",
+    image: "img/exercises/shoulder-rolls.png",
+  },
+  {
+    id: "relaxed-voice",
+    title: "Relaxed voice practice",
+    summary: "Read a short sentence aloud in a natural, comfortable voice.",
+    instructions: "Sit comfortably and take an easy breath. Read a short sentence or talk about something familiar at your usual pace and comfortable volume. Pause to breathe as needed.",
+    cue: "This is gentle practice, not a voice test. Do not force your volume or continue if your throat feels strained.",
+    image: "img/exercises/relaxed-voice.png",
+  },
+];
+
 // ---------------- helpers ----------------
+
+function authHeader() {
+  return AUTH_TOKEN ? { Authorization: "Bearer " + AUTH_TOKEN } : {};
+}
+
 async function api(path, options = {}) {
+  const headers = { ...(options.headers || {}), ...authHeader() };
   let response;
   try {
-    response = await fetch(API + path, options);
+    response = await fetch(API + path, { ...options, headers });
   } catch (e) {
     throw new Error("Cannot reach the NeuroSign backend. Please restart the app.");
+  }
+  if (response.status === 401) {
+    window.NS_onLogout && window.NS_onLogout("Your session has expired. Please sign in again.");
+    throw new Error("Your session has expired. Please sign in again.");
   }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || `Request failed (${response.status})`);
@@ -73,7 +138,74 @@ function showScore(prefix, score) {
   circle.style.background = scoreColor(score);
 }
 
-// ---------------- screen 1: register ----------------
+async function openReportBlob(sessionId) {
+  const res = await fetch(`${API}/api/assessments/${sessionId}/report.pdf`, { headers: authHeader() });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || "Could not open the report.");
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  window.open(url);
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+}
+
+// ---------------- navigation ----------------
+
+function goHome() {
+  PENDING_ACTION = null;
+  showScreen("home");
+}
+window.NS_goHome = goHome;
+
+function requireAuth(action, proceed) {
+  if (AUTH_TOKEN) {
+    proceed();
+  } else {
+    PENDING_ACTION = action;
+    showScreen("login");
+  }
+}
+
+$("home-know-more-btn").addEventListener("click", () => showScreen("knowmore"));
+$("home-test-btn").addEventListener("click", () => requireAuth("test", () => { showScreen("register"); loadPast(); }));
+$("home-neuro-btn").addEventListener("click", () => requireAuth("neuro", () => showScreen("neuro")));
+$("home-nav-btn").addEventListener("click", goHome);
+$("knowmore-back-btn").addEventListener("click", goHome);
+$("neuro-back-btn").addEventListener("click", goHome);
+
+// ---------------- auth session handlers (called by auth.js) ----------------
+
+window.NS_onLogin = function (token, username) {
+  AUTH_TOKEN = token;
+  AUTH_USERNAME = username;
+  $("account-username").textContent = username;
+  $("account-box").classList.remove("hidden");
+
+  const action = PENDING_ACTION;
+  PENDING_ACTION = null;
+  if (action === "test") { showScreen("register"); loadPast(); }
+  else if (action === "neuro") { showScreen("neuro"); }
+  else { showScreen("home"); }
+};
+
+window.NS_onLogout = function (message) {
+  AUTH_TOKEN = null;
+  AUTH_USERNAME = null;
+  localStorage.removeItem("neurosign_token");
+  localStorage.removeItem("neurosign_username");
+  $("account-box").classList.add("hidden");
+  state.profile = null; state.sessionId = null; state.summary = null; state.done = {};
+  showScreen("home");
+  if (window.NS_showLoginMessage) window.NS_showLoginMessage(message || "");
+};
+
+$("logout-btn").addEventListener("click", async () => {
+  try { await api("/api/auth/logout", { method: "POST" }); } catch (e) { /* ignore - logging out locally regardless */ }
+  window.NS_onLogout();
+});
+
+// ---------------- screen: register ----------------
 $("reg-continue").addEventListener("click", () => {
   const name = $("reg-name").value.trim();
   const age = parseInt($("reg-age").value, 10);
@@ -105,16 +237,20 @@ async function loadPast() {
       const c4 = document.createElement("td");
       const a = document.createElement("a");
       a.textContent = "PDF";
-      a.addEventListener("click", () => window.open(`${API}/api/assessments/${r.session_id}/report.pdf`));
+      a.href = "#";
+      a.addEventListener("click", (e) => {
+        e.preventDefault();
+        openReportBlob(r.session_id).catch((err) => console.error(err));
+      });
       c4.appendChild(a);
       tr.append(c1, c2, c3, c4);
       body.appendChild(tr);
     });
     $("past-card").classList.toggle("hidden", rows.length === 0);
-  } catch (e) { /* backend not ready: ignore, list is optional */ }
+  } catch (e) { /* backend not ready, or logged out: ignore, list is optional */ }
 }
 
-// ---------------- screen 2: welcome ----------------
+// ---------------- screen: welcome ----------------
 $("welcome-back").addEventListener("click", () => showScreen("register"));
 
 $("welcome-begin").addEventListener("click", async () => {
@@ -141,7 +277,7 @@ $("welcome-begin").addEventListener("click", async () => {
   }
 });
 
-// ---------------- screen 3: steps ----------------
+// ---------------- screen: steps ----------------
 const recorder = new VoiceRecorder();
 const tracer = new MovementTracer($("tracer-canvas"));
 let voiceRecording = false, voiceTimerId = null, voiceStart = 0;
@@ -296,7 +432,12 @@ async function submitMovement(samples) {
     const r = await api(`/api/assessments/${state.sessionId}/movement`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ step, task_type: currentTask(), samples }),
+      body: JSON.stringify({
+        step,
+        task_type: currentTask(),
+        canvas_size: { width: tracer.canvas.width, height: tracer.canvas.height },
+        samples,
+      }),
     });
     state.done[step] = true;
     const f = r.features;
@@ -306,7 +447,7 @@ async function submitMovement(samples) {
       ["Tremor share (4-6 Hz)", fmt(f.tremor_share * 100, 0) + " %"],
       ["Peak frequency (Hz)", fmt(f.peak_freq_hz, 1)],
       ["Velocity variability (CV)", fmt(f.velocity_cv, 2)],
-      ["Path deviation (px)", f.path_deviation == null ? "N/A" : fmt(f.path_deviation, 2)],
+      ["Distance from guide (95th percentile)", f.guide_deviation == null ? "N/A" : fmt(f.guide_deviation, 1) + " px"],
     ];
     if (step === 8) rows.push([`Change vs step ${r.compared_step} baseline (0-100)`, fmt(r.change_index, 1)]);
     showScore("movement", r.stage_score);
@@ -332,15 +473,71 @@ document.querySelectorAll('input[name="shape"]').forEach((radio) => {
   radio.addEventListener("change", (e) => {
     if (tracer.drawing) { document.querySelector(`input[name="shape"][value="${state.task8}"]`).checked = true; return; }
     state.task8 = e.target.value;
-    state.done[8] = false;            // a different shape needs its own analysis
+    state.done[8] = false;
     $("movement-result").classList.add("hidden");
     updateNext();
     armTracer();
   });
 });
 
-// ---------------- screen 4: results ----------------
+// ---------------- screen: results ----------------
+function renderExercises() {
+  const grid = $("exercise-grid");
+  grid.replaceChildren();
+
+  for (const exercise of EXERCISES) {
+    const card = document.createElement("button");
+    card.type = "button";
+    card.className = "exercise-card";
+    card.dataset.exercise = exercise.id;
+    card.setAttribute("aria-haspopup", "dialog");
+
+    const illustration = document.createElement("span");
+    illustration.className = "exercise-illustration";
+    const image = document.createElement("img");
+    image.src = exercise.image;
+    image.alt = `${exercise.title} illustration`;
+    image.loading = "lazy";
+    illustration.appendChild(image);
+    const title = document.createElement("span");
+    title.className = "exercise-card-title";
+    title.textContent = exercise.title;
+    const summary = document.createElement("span");
+    summary.className = "exercise-card-summary";
+    summary.textContent = exercise.summary;
+    const more = document.createElement("span");
+    more.className = "exercise-card-more";
+    more.textContent = "View steps";
+    card.append(illustration, title, summary, more);
+    grid.appendChild(card);
+  }
+}
+
+function openExercise(exercise) {
+  $("exercise-dialog-title").textContent = exercise.title;
+  $("exercise-dialog-instructions").textContent = exercise.instructions;
+  $("exercise-dialog-cue").textContent = exercise.cue;
+  const illustration = $("exercise-dialog-illustration");
+  illustration.replaceChildren();
+  const image = document.createElement("img");
+  image.src = exercise.image;
+  image.alt = `${exercise.title} illustration`;
+  illustration.appendChild(image);
+  $("exercise-dialog").showModal();
+}
+
+$("exercise-grid").addEventListener("click", (event) => {
+  const card = event.target.closest("[data-exercise]");
+  const exercise = card && EXERCISES.find((item) => item.id === card.dataset.exercise);
+  if (exercise) openExercise(exercise);
+});
+$("exercise-dialog-close").addEventListener("click", () => $("exercise-dialog").close());
+$("exercise-dialog").addEventListener("click", (event) => {
+  if (event.target === $("exercise-dialog")) $("exercise-dialog").close();
+});
+
 function renderResults(summary) {
+  renderExercises();
   const v = summary.verdict;
   $("verdict-card").style.background = v.color;
   $("verdict-title").textContent = v.title;
@@ -371,22 +568,25 @@ function renderResults(summary) {
     bar.style.width = Math.max(2, (s.score || 0) * 0.8) + "px";
     bar.style.background = scoreColor(s.score);
     sc.append(bar, document.createTextNode(fmt(s.score, 1)));
+    const guide = document.createElement("td");
+    const guideDeviation = s.kind === "movement" ? s.data.guide_deviation : null;
+    guide.textContent = guideDeviation == null ? "-" : `${fmt(guideDeviation, 1)} px`;
     const ch = document.createElement("td");
     ch.textContent = s.role === "Detection" ? fmt(s.change_index, 1) : "-";
-    tr.append(sc, ch);
+    tr.append(sc, guide, ch);
     body.appendChild(tr);
   });
   setStatus($("results-status"), "");
 }
 
-const reportUrl = () => `${API}/api/assessments/${state.sessionId}/report.pdf`;
-
-$("open-pdf-btn").addEventListener("click", () => window.open(reportUrl()));
+$("open-pdf-btn").addEventListener("click", () => {
+  openReportBlob(state.sessionId).catch((e) => setStatus($("results-status"), e.message, "error"));
+});
 
 $("save-pdf-btn").addEventListener("click", async () => {
   const status = $("results-status");
   try {
-    const res = await fetch(reportUrl());
+    const res = await fetch(`${API}/api/assessments/${state.sessionId}/report.pdf`, { headers: authHeader() });
     if (!res.ok) throw new Error("Could not create the report.");
     const blob = await res.blob();
     const a = document.createElement("a");
@@ -409,6 +609,3 @@ $("restart-btn").addEventListener("click", () => {
   showScreen("register");
   loadPast();
 });
-
-// ---------------- startup ----------------
-loadPast();
