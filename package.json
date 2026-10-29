@@ -4,9 +4,10 @@
   "description": "NeuroSign - guided local screening demo using voice acoustics and movement micro-tremor analysis.",
   "main": "electron/main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "lint": "node --check electron/main.js && node --check electron/preload.js && node --check renderer/js/app.js && node --check renderer/js/auth.js && node --check renderer/js/neuro.js && node --check renderer/js/recorder.js && node --check renderer/js/theme.js && node --check renderer/js/tracer.js"
   },
-  "license": "UNLICENSED",
+  "license": "MIT",
   "devDependencies": {
     "electron": "^31.0.0"
   },

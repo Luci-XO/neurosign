@@ -1,0 +1,26 @@
+name: Feature request
+description: Suggest a focused improvement to NeuroSign
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem should this solve?
+      description: Explain the user need or limitation.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: What would you like to happen?
+      description: Describe the behavior you propose.
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Project scope
+      options:
+        - label: I understand NeuroSign is a demo and not a clinically validated diagnostic tool.
+          required: true
